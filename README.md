@@ -1,6 +1,4 @@
-# ![nf-core/alignercompare](docs/images/nf-core-alignercompare_logo_light.png#gh-light-mode-only) ![nf-core/alignercompare](docs/images/nf-core-alignercompare_logo_dark.png#gh-dark-mode-only)
-
-[![AWS CI](https://img.shields.io/badge/CI%20tests-full%20size-FF9900?labelColor=000000&logo=Amazon%20AWS)](https://nf-co.re/alignercompare/results)[![Cite with Zenodo](http://img.shields.io/badge/DOI-10.5281/zenodo.XXXXXXX-1073c8?labelColor=000000)](https://doi.org/10.5281/zenodo.XXXXXXX)
+# AlignerCompare
 
 [![Nextflow](https://img.shields.io/badge/nextflow%20DSL2-%E2%89%A522.10.1-23aa62.svg)](https://www.nextflow.io/)
 [![run with conda](http://img.shields.io/badge/run%20with-conda-3EB049?labelColor=000000&logo=anaconda)](https://docs.conda.io/en/latest/)
@@ -8,26 +6,23 @@
 [![run with singularity](https://img.shields.io/badge/run%20with-singularity-1d355c.svg?labelColor=000000)](https://sylabs.io/docs/)
 [![Launch on Nextflow Tower](https://img.shields.io/badge/Launch%20%F0%9F%9A%80-Nextflow%20Tower-%234256e7)](https://tower.nf/launch?pipeline=https://github.com/nf-core/alignercompare)
 
-[![Get help on Slack](http://img.shields.io/badge/slack-nf--core%20%23alignercompare-4A154B?labelColor=000000&logo=slack)](https://nfcore.slack.com/channels/alignercompare)[![Follow on Twitter](http://img.shields.io/badge/twitter-%40nf__core-1DA1F2?labelColor=000000&logo=twitter)](https://twitter.com/nf_core)[![Watch on YouTube](http://img.shields.io/badge/youtube-nf--core-FF0000?labelColor=000000&logo=youtube)](https://www.youtube.com/c/nf-core)
-
 ## Introduction
 
-<!-- TODO nf-core: Write a 1-2 sentence summary of what data the pipeline is for and what it does -->
-
-**nf-core/alignercompare** is a bioinformatics best-practice analysis pipeline for compare alignment metrics from various aligners.
-
-The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner. It uses Docker/Singularity containers making installation trivial and results highly reproducible. The [Nextflow DSL2](https://www.nextflow.io/docs/latest/dsl2.html) implementation of this pipeline uses one container per process which makes it much easier to maintain and update software dependencies. Where possible, these processes have been submitted to and installed from [nf-core/modules](https://github.com/nf-core/modules) in order to make them available to all nf-core pipelines, and to everyone within the Nextflow community!
-
-<!-- TODO nf-core: Add full-sized test dataset and amend the paragraph below if applicable -->
-
-On release, automated continuous integration tests run the pipeline on a full-sized dataset on the AWS cloud infrastructure. This ensures that the pipeline runs on AWS, has sensible resource allocation defaults set to run on real-world datasets, and permits the persistent storage of results to benchmark between pipeline releases and other analysis sources.The results obtained from the full-sized test can be viewed on the [nf-core website](https://nf-co.re/alignercompare/results).
-
+Compare
 ## Pipeline summary
 
-<!-- TODO nf-core: Fill in short bullet-pointed list of the default steps in the pipeline -->
-
-1. Read QC ([`FastQC`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))
-2. Present QC for raw reads ([`MultiQC`](http://multiqc.info/))
+1. Create indicies, process annotation files, create splice junctions for
+the various aligners if not provided
+2. Align with various aligners. Currently set up:
+  - minimap2
+  - STAR
+  - hisat2
+  - bwamem2
+3. QC the aligners
+  - samtools stats,idxstats,flagstat
+  - RSEQC
+  - Subreads/featurecounts
+4. Collate QC reports with MultiQC
 
 ## Quick Start
 
@@ -35,11 +30,18 @@ On release, automated continuous integration tests run the pipeline on a full-si
 
 2. Install any of [`Docker`](https://docs.docker.com/engine/installation/), [`Singularity`](https://www.sylabs.io/guides/3.0/user-guide/) (you can follow [this tutorial](https://singularity-tutorial.github.io/01-installation/)), [`Podman`](https://podman.io/), [`Shifter`](https://nersc.gitlab.io/development/shifter/how-to-use/) or [`Charliecloud`](https://hpc.github.io/charliecloud/) for full pipeline reproducibility _(you can use [`Conda`](https://conda.io/miniconda.html) both to install Nextflow itself and also to manage software within pipelines. Please only use it within pipelines as a last resort; see [docs](https://nf-co.re/usage/configuration#basic-configuration-profiles))_.
 
-3. Download the pipeline and test it on a minimal dataset with a single command:
+3. Pull this repo
 
-   ```bash
-   nextflow run nf-core/alignercompare -profile test,YOURPROFILE --outdir <OUTDIR>
-   ```
+4. Run the test. I suggest creating a file with the following cmd:
+
+  ```bash
+  #!/bin/bash
+
+  export NXF_SINGULARITY_CACHEDIR=singularity
+
+  nextflow run aligner_compare/main.nf \
+      -profile test,singularity
+  ```
 
    Note that some form of configuration will be needed so that Nextflow knows how to fetch the required software. This is usually done in the form of a config profile (`YOURPROFILE` in the example command above). You can chain multiple config profiles in a comma-separated string.
 
@@ -50,15 +52,100 @@ On release, automated continuous integration tests run the pipeline on a full-si
 
 4. Start running your own analysis!
 
-   <!-- TODO nf-core: Update the example "typical command" below used to run the pipeline -->
+To do this, you will need to create a sample sheet `csv`. Here is an example of
+a samplesheet to run HG002 through:
 
-   ```bash
-   nextflow run nf-core/alignercompare --input samplesheet.csv --outdir <OUTDIR> --genome GRCh37 -profile <docker/singularity/podman/shifter/charliecloud/conda/institute>
-   ```
+```raw
+sample,fastq_1,fastq_2
+hg002,/home/oguzkhan/projects/testing_aligncompare/NA24385.filtered.fq.gz,
+```
 
-## Documentation
+Adjust the path according to your system. Note that the SQANTI fasta is converted
+to a fastq file -- I have a script set up in the oop_ify branch of isocomp to
+do this.
 
-The nf-core/alignercompare pipeline comes with documentation about the pipeline [usage](https://nf-co.re/alignercompare/usage), [parameters](https://nf-co.re/alignercompare/parameters) and [output](https://nf-co.re/alignercompare/output).
+Next, set up the input parameters json file:
+
+```json
+{
+   "input": "samplesheet.csv",
+   "outdir": "results",
+   "fasta": "/home/oguzkhan/ref/human/GRCh38.primary_assembly.genome.fa.gz",
+   "gtf": "/mnt/isocomp/genome/gencode/release_42/gencode.v42.annotation.gtf"
+}
+
+```
+
+And the aligner configuration file. I call this `aligner_settings.config` but
+the name doesn't matter:
+
+```raw
+// minimap2
+process {
+
+    withName: MINIMAP2_ALIGN {
+        ext.args = [
+            '-ax splice:hq'
+        ].join('').trim()
+    }
+
+}
+
+// hisat2
+process {
+
+   withName: HISAT2_ALIGN {
+       ext.args = [
+           '--ignore-quals',
+           '--min-intronlen 20',
+           '--max-intronlen 1000000'
+       ]
+
+   }
+
+}
+
+// STAR
+process {
+
+    withName: STAR_ALIGN {
+        ext.args = [
+            '--readFilesCommand zcat',
+            '--STARlong',
+            '--twopassMode Basic',
+            '--outFilterType BySJout',
+            '--outFilterMultimapNmax 20',
+            '--alignSJoverhangMin 8',
+            '--alignSJDBoverhangMin 1',
+            '--outFilterMismatchNmax 999',
+            '--outFilterMismatchNoverReadLmax 0.04',
+            '--alignIntronMin 20',
+            '--alignIntronMax 1000000',
+            '--alignMatesGapMax 1000000'
+        ].join('').trim()
+    }
+
+```
+
+A run command for this would look like so -- I paste this into a file:
+
+```bash
+#!/bin/bash
+
+export NXF_SINGULARITY_CACHEDIR=singularity
+
+# path to the aligner_compare/main.nf file -- make sure correct for your system
+# you may want to change the profile to docker or whatever other dependency
+# manager you're using
+nextflow run aligner_compare/main.nf \
+    -profile singularity \
+    -c aligner_settings.config \
+    -params-file params.json \
+    --max_memory 20.GB \
+    --max_cpus 10 \
+    -resume
+
+```
 
 ## Credits
 

@@ -27,18 +27,25 @@ def create_fastq_channel(LinkedHashMap row) {
     meta.id         = row.sample
     meta.single_end = row.single_end.toBoolean()
 
+   def fastq_1 = file(row.fastq_1).exists() ?
+                    row.fastq_1 :
+                    "${projectDir}/${row.fastq_1}"
+
     // add path(s) of the fastq file(s) to the meta map
     def fastq_meta = []
-    if (!file(row.fastq_1).exists()) {
+    if (!file(fastq_1).exists()) {
         exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${row.fastq_1}"
     }
     if (meta.single_end) {
-        fastq_meta = [ meta, [ file(row.fastq_1) ] ]
+        fastq_meta = [ meta, [ file(fastq_1) ] ]
     } else {
-        if (!file(row.fastq_2).exists()) {
+        def fastq_2 = file(fastq_2).exists() ?
+                        row.fastq_2 :
+                        "${projectDir}/${row.fastq_2}"
+        if (!file(fastq_2).exists()) {
             exit 1, "ERROR: Please check input samplesheet -> Read 2 FastQ file does not exist!\n${row.fastq_2}"
         }
-        fastq_meta = [ meta, [ file(row.fastq_1), file(row.fastq_2) ] ]
+        fastq_meta = [ meta, [ file(fastq_1), file(fastq_2) ] ]
     }
     return fastq_meta
 }

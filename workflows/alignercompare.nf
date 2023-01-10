@@ -11,7 +11,12 @@ WorkflowAlignercompare.initialise(params, log)
 
 // TODO nf-core: Add all file path parameters for the pipeline to the list below
 // Check input path parameters to see if they exist
-def checkPathParamList = [ params.input, params.multiqc_config, params.fasta ]
+def checkPathParamList = [ params.input,
+                           params.multiqc_config,
+                           params.fasta,
+                           params.gtf,
+                           params.star_index,
+                           params.bwamem2_index ]
 for (param in checkPathParamList) { if (param) { file(param, checkIfExists: true) } }
 
 // Check mandatory parameters
@@ -37,7 +42,10 @@ ch_multiqc_custom_methods_description = params.multiqc_methods_description ? fil
 //
 // SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
 //
-include { INPUT_CHECK } from '../subworkflows/local/input_check'
+include { INPUT_CHECK            } from '../subworkflows/local/input_check'
+include { GTF2BED                } from '../modules/local/gtf2bed'
+include { ALIGN                  } from '../subworkflows/local/align'
+include { MULTIQC_CUSTOM_BIOTYPE } from '../modules/local/multiqc_custom_biotype'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -48,7 +56,8 @@ include { INPUT_CHECK } from '../subworkflows/local/input_check'
 //
 // MODULE: Installed directly from nf-core/modules
 //
-include { FASTQC                      } from '../modules/nf-core/fastqc/main'
+include { SUBREAD_FEATURECOUNTS       } from '../modules/nf-core/subread/featurecounts/main'
+include { BAM_RSEQC                   } from '../subworkflows/nf-core/bam_rseqc/main'
 include { MULTIQC                     } from '../modules/nf-core/multiqc/main'
 include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoftwareversions/main'
 
@@ -65,6 +74,16 @@ workflow ALIGNERCOMPARE {
 
     ch_versions = Channel.empty()
 
+    ch_fasta = Channel.fromPath(params.fasta).collect()
+
+    ch_gtf = Channel.fromPath(params.gtf).collect()
+
+    ch_biotypes_header_multiqc   = file("$projectDir/assets/biotypes_header.txt", checkIfExists: true)
+
+    rseqc_modules = params.rseqc_modules ?
+        params.rseqc_modules.split(',').collect{ it.trim().toLowerCase() } :
+        []
+
     //
     // SUBWORKFLOW: Read in samplesheet, validate and stage input files
     //
@@ -73,13 +92,65 @@ workflow ALIGNERCOMPARE {
     )
     ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
 
-    //
-    // MODULE: Run FastQC
-    //
-    FASTQC (
-        INPUT_CHECK.out.reads
+    GTF2BED (
+        ch_gtf
     )
-    ch_versions = ch_versions.mix(FASTQC.out.versions.first())
+    ch_version = ch_versions.mix(GTF2BED.out.versions)
+
+    //
+    // SUBWORKFLOW: Align with a bunch of different aligners
+    //
+    ALIGN(
+        INPUT_CHECK.out.reads,
+        ch_fasta,
+        ch_gtf
+    )
+    ch_versions = ch_versions.mix(ALIGN.out.versions)
+
+    // set up downstream channels
+    ALIGN.out.bam
+        .join(ALIGN.out.bai)
+        .set{ ch_bam_bai }
+
+    GTF2BED.out.bed.view()
+
+    ALIGN.out.bam
+        .combine(ch_gtf)
+        .set{ ch_featurecounts }
+
+    //
+    // SUBWORKFLOW: Run selected RSeQC modules
+    //
+    BAM_RSEQC(
+        ch_bam_bai,
+        GTF2BED.out.bed,
+        rseqc_modules
+    )
+    ch_versions = ch_versions.mix(BAM_RSEQC.out.versions)
+    ch_bamstat_multiqc            = BAM_RSEQC.out.bamstat_txt
+    ch_inferexperiment_multiqc    = BAM_RSEQC.out.inferexperiment_txt
+    ch_innerdistance_multiqc      = BAM_RSEQC.out.innerdistance_freq
+    ch_junctionannotation_multiqc = BAM_RSEQC.out.junctionannotation_log
+    ch_junctionsaturation_multiqc = BAM_RSEQC.out.junctionsaturation_rscript
+    ch_readdistribution_multiqc   = BAM_RSEQC.out.readdistribution_txt
+    ch_readduplication_multiqc    = BAM_RSEQC.out.readduplication_pos_xls
+    ch_tin_multiqc                = BAM_RSEQC.out.tin_txt
+
+    //
+    // SUBWORKFLOW: Run subread featurecounts to quantify coverage of various
+    //              annotated features
+    //
+    SUBREAD_FEATURECOUNTS(
+        ch_featurecounts
+    )
+    ch_versions = ch_versions.mix(SUBREAD_FEATURECOUNTS.out.versions)
+
+    MULTIQC_CUSTOM_BIOTYPE (
+        SUBREAD_FEATURECOUNTS.out.counts,
+        ch_biotypes_header_multiqc
+    )
+    ch_featurecounts_multiqc = MULTIQC_CUSTOM_BIOTYPE.out.tsv
+    ch_versions = ch_versions.mix(MULTIQC_CUSTOM_BIOTYPE.out.versions.first())
 
     CUSTOM_DUMPSOFTWAREVERSIONS (
         ch_versions.unique{ it.text }.collectFile(name: 'collated_versions.yml')
@@ -98,7 +169,24 @@ workflow ALIGNERCOMPARE {
     ch_multiqc_files = ch_multiqc_files.mix(ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
     ch_multiqc_files = ch_multiqc_files.mix(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml'))
     ch_multiqc_files = ch_multiqc_files.mix(CUSTOM_DUMPSOFTWAREVERSIONS.out.mqc_yml.collect())
-    ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]}.ifEmpty([]))
+
+    // SAMTOOLS metrics
+    ch_multiqc_files = ch_multiqc_files.mix(ALIGN.out.stats.collect{it[1]}.ifEmpty([]))
+    ch_multiqc_files = ch_multiqc_files.mix(ALIGN.out.flagstat.collect{it[1]}.ifEmpty([]))
+    ch_multiqc_files = ch_multiqc_files.mix(ALIGN.out.idxstats.collect{it[1]}.ifEmpty([]))
+
+    // featurecounts
+    ch_multiqc_files = ch_multiqc_files.mix(ch_featurecounts_multiqc.collect{it[1]}.ifEmpty([]))
+
+    // RSEQC metrics
+    ch_multiqc_files = ch_multiqc_files.mix(ch_bamstat_multiqc.collect{it[1]}.ifEmpty([]))
+	ch_multiqc_files = ch_multiqc_files.mix(ch_inferexperiment_multiqc.collect{it[1]}.ifEmpty([]))
+	ch_multiqc_files = ch_multiqc_files.mix(ch_innerdistance_multiqc.collect{it[1]}.ifEmpty([]))
+	ch_multiqc_files = ch_multiqc_files.mix(ch_junctionannotation_multiqc.collect{it[1]}.ifEmpty([]))
+	ch_multiqc_files = ch_multiqc_files.mix(ch_junctionsaturation_multiqc.collect{it[1]}.ifEmpty([]))
+	ch_multiqc_files = ch_multiqc_files.mix(ch_readdistribution_multiqc.collect{it[1]}.ifEmpty([]))
+	ch_multiqc_files = ch_multiqc_files.mix(ch_readduplication_multiqc.collect{it[1]}.ifEmpty([]))
+	ch_multiqc_files = ch_multiqc_files.mix(ch_tin_multiqc.collect{it[1]}.ifEmpty([]))
 
     MULTIQC (
         ch_multiqc_files.collect(),

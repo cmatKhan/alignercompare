@@ -330,5 +330,19 @@
         {
             "$ref": "#/definitions/generic_options"
         }
-    ]
+    ],
+    "properties": {
+        "gencode": {
+            "type": "string",
+            "default": "true"
+        },
+        "featurecounts_group_type": {
+            "type": "string",
+            "default": null
+        },
+        "featurecounts_feature_type": {
+            "type": "string",
+            "default": "exon"
+        }
+    }
 }

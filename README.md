@@ -80,12 +80,15 @@ the name doesn't matter:
 
 ```raw
 // minimap2
+// note that -a is hard coded into the bam output cmd of the
+// nextflow module minimap command. no need to include -a here
 process {
 
     withName: MINIMAP2_ALIGN {
         ext.args = [
-            '-ax splice:hq'
-        ].join('').trim()
+            '-x splice:hq',
+            '-uf'
+        ].join(' ').trim()
     }
 
 }
@@ -95,10 +98,9 @@ process {
 
    withName: HISAT2_ALIGN {
        ext.args = [
-           '--ignore-quals',
            '--min-intronlen 20',
            '--max-intronlen 1000000'
-       ]
+       ].join(' ').trim()
 
    }
 
@@ -123,6 +125,8 @@ process {
             '--alignMatesGapMax 1000000'
         ].join('').trim()
     }
+
+}
 
 ```
 

@@ -3,8 +3,6 @@ include { HISAT2_EXTRACTSPLICESITES } from '../../modules/nf-core/hisat2/extract
 include { HISAT2_BUILD              } from '../../modules/nf-core/hisat2/build/main'
 include { HISAT2_ALIGN              } from '../../modules/nf-core/hisat2/align/main'
 include { STAR_GENOMEGENERATE       } from '../../modules/nf-core/star/genomegenerate/main'
-include { BWAMEM2_INDEX             } from '../../modules/nf-core/bwamem2/index/main'
-include { BWAMEM2_MEM               } from '../../modules/nf-core/bwamem2/mem/main'
 include { MINIMAP2_ALIGN            } from '../../modules/nf-core/minimap2/align/main'
 include { BAM_SORT_STATS_SAMTOOLS   } from '../nf-core/bam_sort_stats_samtools/main'
 include { FASTQ_ALIGN_STAR          } from '../nf-core/fastq_align_star/main'
@@ -62,33 +60,6 @@ workflow ALIGN {
     ch_unsorted_bam = ch_unsorted_bam.mix(
         FASTQ_ALIGN_STAR.out.bam.map{
             meta, bam -> [augment_meta(meta,'star'),bam]})
-
-
-    // if(!params.bwamem2_index){
-
-    //     BWAMEM2_INDEX (
-    //         genome.map{ it -> [[id: 'ref_genome'], it]}
-    //     )
-    //     ch_versions = ch_versions.mix(BWAMEM2_INDEX.out.versions)
-    //     ch_bwamem2_index = BWAMEM2_INDEX.out.index
-
-    // } else{
-
-    //     ch_bwamem2_index = Channel.fromPath(params.bwamem2_index)
-    //         .collect()
-    //         .map{ it -> [[id: 'ref'], it]}
-    // }
-
-    // BWAMEM2_MEM(
-    //     fastq,               // channel: [mandatory] meta, reads
-    //     ch_bwamem2_index,    // channel: [mandatory] aligner index
-    //     false                // boolean: [mandatory] true -> sort, false -> don't sort
-    // )
-    // ch_versions = ch_versions.mix(BWAMEM2_MEM.out.versions)
-    // ch_unsorted_bam = ch_unsorted_bam.mix(
-    //     BWAMEM2_MEM.out.bam.map{
-    //         meta, bam -> [augment_meta(meta,'bwamem2'), bam]})
-
 
     if(!params.hisat2_splicesites){
 

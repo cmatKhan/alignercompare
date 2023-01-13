@@ -1,4 +1,5 @@
 
+include { GUNZIP as GUNZIP_FASTA    } from '../../modules/nf-core/gunzip/main'
 include { HISAT2_EXTRACTSPLICESITES } from '../../modules/nf-core/hisat2/extractsplicesites/main'
 include { HISAT2_BUILD              } from '../../modules/nf-core/hisat2/build/main'
 include { HISAT2_ALIGN              } from '../../modules/nf-core/hisat2/align/main'
@@ -106,8 +107,17 @@ workflow ALIGN {
 
     if(!params.hisat2_index){
 
+        if (params.fasta.endsWith('.gz')) {
+            ch_fasta    = GUNZIP_FASTA ( [ [:], params.fasta ] ).gunzip.map { it[1] }
+            ch_versions = ch_versions.mix(GUNZIP_FASTA.out.versions)
+        } else {
+            ch_fasta = genome
+        }
+
+        GUNZIP_FASTA ( [ [:], params.fasta ] ).gunzip.map { it[1] }
+
         HISAT2_BUILD (
-            genome,
+            ch_fasta,
             gtf,
             ch_hisat2_splicesites
         )

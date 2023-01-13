@@ -65,30 +65,30 @@ workflow ALIGN {
             meta, bam -> [augment_meta(meta,'star'),bam]})
 
 
-    if(!params.bwamem2_index){
+    // if(!params.bwamem2_index){
 
-        BWAMEM2_INDEX (
-            genome.map{ it -> [[id: 'ref_genome'], it]}
-        )
-        ch_versions = ch_versions.mix(BWAMEM2_INDEX.out.versions)
-        ch_bwamem2_index = BWAMEM2_INDEX.out.index
+    //     BWAMEM2_INDEX (
+    //         genome.map{ it -> [[id: 'ref_genome'], it]}
+    //     )
+    //     ch_versions = ch_versions.mix(BWAMEM2_INDEX.out.versions)
+    //     ch_bwamem2_index = BWAMEM2_INDEX.out.index
 
-    } else{
+    // } else{
 
-        ch_bwamem2_index = Channel.fromPath(params.bwamem2_index)
-            .collect()
-            .map{ it -> [[id: 'ref'], it]}
-    }
+    //     ch_bwamem2_index = Channel.fromPath(params.bwamem2_index)
+    //         .collect()
+    //         .map{ it -> [[id: 'ref'], it]}
+    // }
 
-    BWAMEM2_MEM(
-        fastq,               // channel: [mandatory] meta, reads
-        ch_bwamem2_index,    // channel: [mandatory] aligner index
-        false                // boolean: [mandatory] true -> sort, false -> don't sort
-    )
-    ch_versions = ch_versions.mix(BWAMEM2_MEM.out.versions)
-    ch_unsorted_bam = ch_unsorted_bam.mix(
-        BWAMEM2_MEM.out.bam.map{
-            meta, bam -> [augment_meta(meta,'bwamem2'), bam]})
+    // BWAMEM2_MEM(
+    //     fastq,               // channel: [mandatory] meta, reads
+    //     ch_bwamem2_index,    // channel: [mandatory] aligner index
+    //     false                // boolean: [mandatory] true -> sort, false -> don't sort
+    // )
+    // ch_versions = ch_versions.mix(BWAMEM2_MEM.out.versions)
+    // ch_unsorted_bam = ch_unsorted_bam.mix(
+    //     BWAMEM2_MEM.out.bam.map{
+    //         meta, bam -> [augment_meta(meta,'bwamem2'), bam]})
 
 
     if(!params.hisat2_splicesites){

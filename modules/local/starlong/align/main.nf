@@ -42,7 +42,7 @@ process STAR_ALIGN {
     def out_sam_type    = (args.contains('--outSAMtype')) ? '' : '--outSAMtype BAM Unsorted'
     def mv_unsorted_bam = (args.contains('--outSAMtype BAM Unsorted SortedByCoordinate')) ? "mv ${prefix}.Aligned.out.bam ${prefix}.Aligned.unsort.out.bam" : ''
     """
-    STAR \\
+    STARlong \\
         --genomeDir $index \\
         --readFilesIn $reads  \\
         --runThreadN $task.cpus \\

@@ -1,4 +1,4 @@
-include { STAR_ALIGN              } from '../../../modules/nf-core/star/align/main'
+include { STAR_ALIGN              } from '../../../modules/local/starlong/align/main'
 include { BAM_SORT_STATS_SAMTOOLS } from '../bam_sort_stats_samtools/main'
 
 workflow FASTQ_ALIGN_STAR {

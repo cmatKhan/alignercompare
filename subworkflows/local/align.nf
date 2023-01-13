@@ -2,7 +2,7 @@
 include { HISAT2_EXTRACTSPLICESITES } from '../../modules/nf-core/hisat2/extractsplicesites/main'
 include { HISAT2_BUILD              } from '../../modules/nf-core/hisat2/build/main'
 include { HISAT2_ALIGN              } from '../../modules/nf-core/hisat2/align/main'
-include { STAR_GENOMEGENERATE       } from '../../modules/nf-core/star/genomegenerate/main'
+include { STAR_GENOMEGENERATE       } from '../../modules/local/starlong/genomegenerate/main'
 include { MINIMAP2_ALIGN            } from '../../modules/nf-core/minimap2/align/main'
 include { BAM_SORT_STATS_SAMTOOLS   } from '../nf-core/bam_sort_stats_samtools/main'
 include { FASTQ_ALIGN_STAR          } from '../nf-core/fastq_align_star/main'

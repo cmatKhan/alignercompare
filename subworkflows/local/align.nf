@@ -114,8 +114,6 @@ workflow ALIGN {
             ch_fasta = genome
         }
 
-        GUNZIP_FASTA ( [ [:], params.fasta ] ).gunzip.map { it[1] }
-
         HISAT2_BUILD (
             ch_fasta,
             gtf,

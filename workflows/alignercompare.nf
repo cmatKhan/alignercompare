@@ -15,8 +15,7 @@ def checkPathParamList = [ params.input,
                            params.multiqc_config,
                            params.fasta,
                            params.gtf,
-                           params.star_index,
-                           params.bwamem2_index ]
+                           params.star_index ]
 for (param in checkPathParamList) { if (param) { file(param, checkIfExists: true) } }
 
 // Check mandatory parameters

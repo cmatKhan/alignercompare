@@ -17,7 +17,6 @@ the various aligners if not provided
   - minimap2
   - STAR
   - hisat2
-  - bwamem2
 3. QC the aligners
   - samtools stats,idxstats,flagstat
   - RSEQC
